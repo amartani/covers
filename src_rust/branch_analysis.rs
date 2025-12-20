@@ -59,7 +59,7 @@ fn compute_next_nodes_recursive(
 
         // Process children but don't inherit parent's next
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
+            if let Some(child) = node.child(i as u32) {
                 compute_next_nodes_recursive(&child, source, 0, next_nodes);
             }
         }
@@ -73,8 +73,8 @@ fn compute_next_nodes_recursive(
     // Note: async for does NOT loop back (matching Python's old implementation)
     if kind == "for_statement" {
         // Check if this is async for by looking for an 'async' child
-        let is_async =
-            (0..node.child_count()).any(|i| node.child(i).map(|c| c.kind()) == Some("async"));
+        let is_async = (0..node.child_count())
+            .any(|i| node.child(i as u32).map(|c| c.kind()) == Some("async"));
 
         if is_async {
             // Async for: body does NOT loop back
@@ -91,7 +91,7 @@ fn compute_next_nodes_recursive(
 
         // Process other children (condition, alternative) with parent's next
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && node.field_name_for_child(i as u32) != Some("body")
             {
                 compute_next_nodes_recursive(&child, source, parent_next, next_nodes);
@@ -111,7 +111,7 @@ fn compute_next_nodes_recursive(
 
         // Process other children (condition, alternative) with parent's next
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && node.field_name_for_child(i as u32) != Some("body")
             {
                 compute_next_nodes_recursive(&child, source, parent_next, next_nodes);
@@ -126,7 +126,7 @@ fn compute_next_nodes_recursive(
         if let Some(body) = node.child_by_field_name("body") {
             // Process each case_clause in the body with parent_next
             for i in 0..body.child_count() {
-                if let Some(case) = body.child(i)
+                if let Some(case) = body.child(i as u32)
                     && case.kind() == "case_clause"
                 {
                     compute_next_nodes_recursive(&case, source, parent_next, next_nodes);
@@ -136,7 +136,7 @@ fn compute_next_nodes_recursive(
 
         // Process non-body children
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && node.field_name_for_child(i as u32) != Some("body")
             {
                 compute_next_nodes_recursive(&child, source, parent_next, next_nodes);
@@ -161,7 +161,7 @@ fn compute_next_nodes_recursive(
         let mut finally_line = None;
 
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
+            if let Some(child) = node.child(i as u32) {
                 match child.kind() {
                     "else_clause" => {
                         else_line = find_first_statement_line(&child);
@@ -185,7 +185,7 @@ fn compute_next_nodes_recursive(
         // Process except handlers - they skip else and go to finally or parent's next
         let except_next = finally_line.unwrap_or(parent_next);
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
+            if let Some(child) = node.child(i as u32) {
                 let child_kind = child.kind();
                 if child_kind == "except_clause" {
                     compute_next_nodes_recursive(&child, source, except_next, next_nodes);
@@ -205,7 +205,7 @@ fn compute_next_nodes_recursive(
     if kind == "block" || kind == "module" {
         let mut stmts: Vec<Node> = Vec::new();
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && is_statement(&child)
             {
                 stmts.push(child);
@@ -232,7 +232,7 @@ fn compute_next_nodes_recursive(
     } else {
         // For other nodes, recurse into children
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
+            if let Some(child) = node.child(i as u32) {
                 compute_next_nodes_recursive(&child, source, parent_next, next_nodes);
             }
         }
@@ -262,7 +262,7 @@ fn find_branches_recursive(
         _ => {
             // Recurse into children
             for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
+                if let Some(child) = node.child(i as u32) {
                     find_branches_recursive(&child, source, next_nodes, branches)?;
                 }
             }
@@ -296,13 +296,13 @@ fn handle_elif_as_if(
     // We need to look at the parent to find sibling alternatives
     if let Some(parent) = node.parent() {
         let mut found_else = false;
-        let elif_index =
-            (0..parent.child_count()).find(|&i| parent.child(i).map(|c| c.id()) == Some(node.id()));
+        let elif_index = (0..parent.child_count())
+            .find(|&i| parent.child(i as u32).map(|c| c.id()) == Some(node.id()));
 
         if let Some(start_idx) = elif_index {
             // Look for siblings after this elif
             for i in (start_idx + 1)..parent.child_count() {
-                if let Some(sibling) = parent.child(i)
+                if let Some(sibling) = parent.child(i as u32)
                     && parent.field_name_for_child(i as u32) == Some("alternative")
                 {
                     let sibling_kind = sibling.kind();
@@ -376,7 +376,7 @@ fn handle_if_statement(
     // the if should only branch to the first one. The elif will handle the rest.
     let mut found_alternative = false;
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i)
+        if let Some(child) = node.child(i as u32)
             && node.field_name_for_child(i as u32) == Some("alternative")
         {
             found_alternative = true;
@@ -458,7 +458,7 @@ fn handle_loop_statement(
 
     // Recurse into children
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
+        if let Some(child) = node.child(i as u32) {
             find_branches_recursive(&child, source, next_nodes, branches)?;
         }
     }
@@ -479,7 +479,7 @@ fn handle_match_statement(
     // Find all case clauses
     if let Some(body) = node.child_by_field_name("body") {
         for i in 0..body.child_count() {
-            if let Some(case) = body.child(i)
+            if let Some(case) = body.child(i as u32)
                 && case.kind() == "case_clause"
             {
                 // Each case gets a marker
@@ -490,7 +490,7 @@ fn handle_match_statement(
 
                 // Check if this is a wildcard case
                 for j in 0..case.child_count() {
-                    if let Some(child) = case.child(j) {
+                    if let Some(child) = case.child(j as u32) {
                         let kind = child.kind();
                         if kind == "case_pattern" {
                             // Check if the pattern contains a wildcard (recursively)
@@ -526,7 +526,7 @@ fn handle_match_statement(
 
     // Recurse into children
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
+        if let Some(child) = node.child(i as u32) {
             find_branches_recursive(&child, source, next_nodes, branches)?;
         }
     }
@@ -541,7 +541,7 @@ fn find_first_statement_line(node: &Node) -> Option<usize> {
     if matches!(kind, "else_clause" | "elif_clause" | "finally_clause") {
         // These nodes have a body - recurse into it
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && let Some(line) = find_first_statement_line(&child)
             {
                 return Some(line);
@@ -561,7 +561,7 @@ fn find_first_statement_line(node: &Node) -> Option<usize> {
     // If it's a block, find the first statement child
     if kind == "block" {
         for i in 0..node.child_count() {
-            if let Some(child) = node.child(i)
+            if let Some(child) = node.child(i as u32)
                 && is_statement(&child)
             {
                 return Some(child.start_position().row + 1);
@@ -577,7 +577,7 @@ fn find_first_statement_line(node: &Node) -> Option<usize> {
 
     // Check all children
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i)
+        if let Some(child) = node.child(i as u32)
             && let Some(line) = find_first_statement_line(&child)
         {
             return Some(line);
@@ -641,7 +641,7 @@ fn contains_wildcard(node: &Node) -> bool {
 
     // Recursively check all children
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i)
+        if let Some(child) = node.child(i as u32)
             && contains_wildcard(&child)
         {
             return true;
